@@ -25,9 +25,9 @@ bun dev                       # http://localhost:3000
 
 | Path | What it is |
 |---|---|
-| `src/routes/` | All pages (file-based routing, `routeTree.gen.ts` is generated) |
+| `src/routes/` | All pages (file-based routing, `routeTree.gen.ts` is generated). Admin-area pages live under the **`_admin` pathless layout route** (`DashboardShell` — auth guard + sidebar). Product create/edit & role changes are **modal dialogs**, not pages |
 | `src/lib/auth.ts` | Better Auth config, `requireAuth()` / `requireAdmin()`, seed |
-| `src/components/` | `Header`, `Footer`, `ThemeToggle`, shadcn `ui/` components |
+| `src/components/` | `Header`, `Footer`, `ThemeToggle`, shadcn `ui/` components, `ProductFormModal`, `UserRoleModal` |
 | Server functions | `createProduct`, `updateProduct`, `deleteProduct`, `updateUserRole`, `deleteUser`, `getUsers` |
 
 **Stack:** TanStack Start (React 19) · TanStack Router/Query/Form/Table · Better Auth (in-memory) · Tailwind + shadcn · Biome · bun.
@@ -37,10 +37,9 @@ bun dev                       # http://localhost:3000
 | Route | Access | Test it |
 |---|---|---|
 | `/`, `/login`, `/setup` | public | Renders, seed is idempotent |
-| `/dashboard` | auth | Redirects to login when signed out |
-| `/products` | auth | List renders, sorting works |
-| `/products/new`, `/products/$id` | admin | Create/edit/delete; non-admin blocked |
-| `/users`, `/users/$userId` | admin | Role change; last-admin lockout blocked |
+| `/dashboard` | auth | Redirects to login when signed out; sidebar shell renders |
+| `/products` | auth | List renders, sorting works; create/edit/delete modals open & save |
+| `/users` | admin | Role change modal; last-admin lockout blocked; delete confirm dialog |
 
 ---
 
@@ -48,18 +47,22 @@ bun dev                       # http://localhost:3000
 
 Improve at least **3 pages** (suggested: Home, Dashboard, Products).
 
-- [ ] **Sidebar layout** for the dashboard area (Dashboard, Products, Users) with icons per nav item (e.g. `lucide-react`); collapsible + hamburger drawer on mobile
-- [ ] Replace the separate `/products/new` and edit pages with **modal dialogs** — every **Create** and **Update** action (products, user roles) opens in a popup modal, not a full page
+- [ ] **Sidebar layout** for the dashboard area (Dashboard, Products, Users) with icons per nav item (e.g. `lucide-react`); collapsible + hamburger drawer on mobile — *already scaffolded in the `_admin` layout route, polish it*
+- [ ] Create/Update actions already open in **popup modals** (`ProductFormModal`, `UserRoleModal`) — polish them: validation messages, cancel behavior, loading/submission states
+- [ ] **Revamp the login page** — a clean, modern, on-brand sign-in card (centered layout, logo/title, subtle card shadow/border, dark-mode support, and clear error feedback for wrong credentials). First impression counts!
+- [ ] **Remove the docs & demo pages** (`/demo/*`, `/about` and any scaffold demo routes) — the dashboard is a real product, not a scaffold tour. Delete the route files, run `bunx tsr generate`, and make sure nothing in `Header`/`Footer`/`__root.tsx` still links to them
+- [ ] **Product image input** in the product modal — file picker or URL input with a preview; the image is capped at **max 512px** (reject or downscale larger images before saving). Validate it client-side for UX *and* keep a server-side check in `createProduct`/`updateProduct` (see Task C)
 - [ ] Responsive at mobile width (no desktop-only tables)
 - [ ] Consistent spacing / typography / colors; dark mode works via `ThemeToggle`
 - [ ] Loading, empty, and error states on data pages
 - [ ] Stick to Tailwind + existing shadcn `ui/` components — no framework swap
 
-> 💡 shadcn's `dialog.tsx` is already in `src/components/ui/` — build your modals on it. If you convert create/edit to modals, the old routes may be removed or kept as redirects; make sure all links still work.
+> 💡 shadcn's `dialog.tsx` is already in `src/components/ui/` — build your modals on it. After deleting route files, run `bunx tsr generate` so `routeTree.gen.ts` is updated, then confirm no dead links remain.
 
 ## 4 · Task B — Fix Errors (Required)
 
 - [ ] `bun run lint` passes (fix known scaffold issues in `styles.css`, `__root.tsx`, `demo/`)
+- [ ] **Product form inputs can't be typed into** (the create/edit product modal's fields reject keystrokes). Diagnose why — usually a broken controlled-input state (value never updating on each keystroke, or the form re-mounting). Fix it so all product fields accept and persist typing
 - [ ] `bun run build` succeeds with zero errors
 - [ ] Every route above manually tested + broken behavior fixed
 
