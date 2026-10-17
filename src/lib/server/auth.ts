@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { auth } from "@/lib/auth";
 import { SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, db } from "@/lib/db";
+import { seedKebayaCatalog } from "@/lib/server/kebaya-catalog";
 import { getCurrentSession } from "@/lib/session";
 
 /**
@@ -24,56 +25,34 @@ export const seedAdmin = createServerFn({ method: "POST" }).handler(async () => 
 		const role = db.userRole.find((r) => r.userId === u.id)?.role;
 		return role === "admin";
 	});
-	if (hasAdmin) {
-		return { ok: true, alreadySeeded: true, admin: SEED_ADMIN_EMAIL };
-	}
 
-	await auth.api.signUpEmail({
-		body: {
-			email: SEED_ADMIN_EMAIL,
-			password: SEED_ADMIN_PASSWORD,
-			name: "Administrator",
-		},
-		headers: new Headers(),
-	});
+	if (!hasAdmin) {
+		await auth.api.signUpEmail({
+			body: {
+				email: SEED_ADMIN_EMAIL,
+				password: SEED_ADMIN_PASSWORD,
+				name: "Administrator",
+			},
+			headers: new Headers(),
+		});
 
-	const adminUser = db.user.find((u) => u.email === SEED_ADMIN_EMAIL);
-	if (adminUser) {
-		const existing = db.userRole.find((r) => r.userId === adminUser.id);
-		if (existing) {
-			existing.role = "admin";
-		} else {
-			db.userRole.push({ userId: adminUser.id, role: "admin" });
+		const adminUser = db.user.find((u) => u.email === SEED_ADMIN_EMAIL);
+		if (adminUser) {
+			const existing = db.userRole.find((r) => r.userId === adminUser.id);
+			if (existing) {
+				existing.role = "admin";
+			} else {
+				db.userRole.push({ userId: adminUser.id, role: "admin" });
+			}
 		}
 	}
 
-	const now = new Date().toISOString();
-	const products = [
-		{
-			name: "Starter Kit",
-			description: "Everything you need to begin.",
-			price: 49,
-			stock: 12,
-		},
-		{
-			name: "Pro Plan",
-			description: "For growing teams.",
-			price: 149,
-			stock: 5,
-		},
-		{
-			name: "Enterprise",
-			description: "Self-hosted, full support.",
-			price: 499,
-			stock: 1,
-		},
-	].map((p) => ({
-		id: crypto.randomUUID(),
-		...p,
-		createdAt: now,
-		updatedAt: now,
-	}));
-	db.product.push(...products);
+	const productsAdded = seedKebayaCatalog();
 
-	return { ok: true, alreadySeeded: false, admin: SEED_ADMIN_EMAIL };
+	return {
+		ok: true,
+		alreadySeeded: hasAdmin && productsAdded === 0,
+		admin: SEED_ADMIN_EMAIL,
+		productsAdded,
+	};
 });

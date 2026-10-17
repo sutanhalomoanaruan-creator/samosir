@@ -23,7 +23,7 @@ bun dev                       # http://localhost:3000
 
 ## 2 · Codebase Map (skim before changing anything)
 
-| Path | What it is |
+| Path | What it is |`
 |---|---|
 | `src/routes/` | All pages (file-based routing, `routeTree.gen.ts` is generated). Admin-area pages live under the **`_admin` pathless layout route** (`DashboardShell` — auth guard + sidebar). Product create/edit & role changes are **modal dialogs**, not pages |
 | `src/lib/auth.ts` | Better Auth config, `requireAuth()` / `requireAdmin()`, seed |

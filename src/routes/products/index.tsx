@@ -1,179 +1,220 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, createFileRoute, redirect } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import {
-	createColumnHelper,
-	flexRender,
-	rowSortingFeature,
-	tableFeatures,
-	useTable,
-} from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { Search, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
 
-import type { Product } from "@/lib/db";
-import { getServerSession } from "@/lib/server/auth";
-import { deleteProduct, getProducts } from "@/lib/server/products";
+import { AddToCartButton } from "@/components/storefront/cart-controls";
+import { ProductArtwork } from "@/components/storefront/product-artwork";
+import { PRODUCT_CATEGORIES, type ProductCategory } from "@/lib/db";
+import { getPublicProducts } from "@/lib/server/products";
+import { formatRupiah } from "@/lib/utils";
 
 export const Route = createFileRoute("/products/")({
-	beforeLoad: async () => {
-		const { session } = await getServerSession();
-		if (!session) {
-			return redirect({ to: "/demo/better-auth" }) as any;
-		}
-	},
-	component: Products,
+	validateSearch: z.object({ category: z.enum(PRODUCT_CATEGORIES).optional() }),
+	component: Catalog,
 });
 
-function Products() {
-	const queryClient = useQueryClient();
+function Catalog() {
+	const searchParams = Route.useSearch();
+	const [category, setCategory] = useState<ProductCategory | "Semua">(
+		searchParams.category ?? "Semua",
+	);
+	const [search, setSearch] = useState("");
 	const productsQuery = useQuery({
-		queryKey: ["products"],
-		queryFn: async () => getProducts(),
+		queryKey: ["storefront", "products"],
+		queryFn: () => getPublicProducts(),
 	});
-	const deleteFn = useServerFn(deleteProduct);
-
-	const features = tableFeatures({ rowSortingFeature });
-	const columnHelper = createColumnHelper<typeof features, Product>();
-
-	const columns = columnHelper.columns([
-		columnHelper.accessor("name", { header: "Name" }),
-		columnHelper.accessor("description", { header: "Description" }),
-		columnHelper.accessor("price", {
-			header: "Price",
-			cell: (info) => `$${Number(info.getValue()).toFixed(2)}`,
-		}),
-		columnHelper.accessor("stock", { header: "Stock" }),
-		columnHelper.display({
-			id: "actions",
-			header: "Actions",
-			cell: (info) => {
-				const product = info.row.original as Product;
-				return (
-					<div className="flex items-center gap-2">
-						<Link
-							to="/products/$productId"
-							params={{ productId: product.id }}
-							className="text-xs text-[var(--sea-ink)] underline underline-offset-4 hover:text-[var(--sea-ink)]"
-						>
-							Edit
-						</Link>
-						<button
-							type="button"
-							onClick={() => void handleDelete(product.id)}
-							className="text-xs text-red-600 hover:text-red-900 underline underline-offset-4"
-						>
-							Delete
-						</button>
-					</div>
-				);
-			},
-		}),
-	]);
-
-	const table = useTable({
-		features,
-		columns,
-		data: productsQuery.data ?? [],
-	});
-
-	const handleDelete = async (id: string) => {
-		if (!window.confirm("Delete this product?")) {
-			return;
-		}
-		try {
-			await deleteFn({ data: { id } });
-			await queryClient.invalidateQueries({ queryKey: ["products"] });
-		} catch (err) {
-			window.alert(err instanceof Error ? err.message : "Delete failed");
-		}
-	};
+	const products = productsQuery.data ?? [];
+	const visibleProducts = useMemo(() => {
+		const normalizedSearch = search.trim().toLocaleLowerCase();
+		return products.filter((product) => {
+			const matchesCategory = category === "Semua" || product.category === category;
+			const matchesName = `${product.name} ${product.description}`
+				.toLocaleLowerCase()
+				.includes(normalizedSearch);
+			return matchesCategory && matchesName;
+		});
+	}, [category, products, search]);
 
 	return (
-		<main className="page-wrap px-4 py-12">
-			<section className="island-shell rounded-2xl p-6 sm:p-8">
-				<div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+		<main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
+			<section className="relative overflow-hidden rounded-[2rem] bg-stone-950 px-6 py-10 text-white sm:px-10 sm:py-14">
+				<div className="absolute -right-12 -top-24 h-72 w-72 rounded-full border border-amber-200/15" />
+				<div className="absolute -right-2 -top-14 h-52 w-52 rounded-full border border-amber-200/20" />
+				<div className="relative max-w-2xl">
+					<p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-amber-300">
+						<Sparkles size={15} aria-hidden="true" />
+						Koleksi wastra pilihan
+					</p>
+					<h1 className="m-0 font-serif text-4xl leading-tight sm:text-6xl">
+						Warisan Nusantara,
+						<br />
+						<span className="text-amber-300">dikenakan dengan bangga.</span>
+					</h1>
+					<p className="mb-0 mt-5 max-w-xl text-sm leading-7 text-stone-300 sm:text-base">
+						Jelajahi kebaya, kain tenun, songket, dan batik pilihan yang merayakan cerita di setiap
+						helaian.
+					</p>
+				</div>
+			</section>
+
+			<section className="py-8 sm:py-10" aria-labelledby="catalog-heading">
+				<div className="mb-5 flex flex-wrap items-end justify-between gap-4">
 					<div>
-						<p className="island-kicker mb-2">Products</p>
-						<h1 className="display-title mb-1 text-3xl font-bold text-[var(--sea-ink)] sm:text-4xl">
-							Products
-						</h1>
-						<p className="m-0 text-[var(--sea-ink-soft)]">
-							TanStack Table + TanStack Query + server functions. Admin only.
+						<p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
+							Kain &amp; Kebaya
+						</p>
+						<h2 id="catalog-heading" className="m-0 font-serif text-3xl text-stone-900">
+							Jelajahi koleksi
+						</h2>
+						<p className="mb-0 mt-2 text-sm text-stone-600">
+							{productsQuery.isPending
+								? "Memuat produk..."
+								: `${visibleProducts.length} produk ditemukan`}
 						</p>
 					</div>
-					<Link
-						to="/products/new"
-						className="rounded-xl border border-[var(--line)] bg-[var(--chip-bg)] px-5 py-3 text-sm font-semibold text-[var(--sea-ink)] no-underline transition hover:bg-[var(--link-bg-hover)]"
+					<label className="flex w-full items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-3 text-stone-500 shadow-sm sm:max-w-sm">
+						<Search size={17} aria-hidden="true" />
+						<span className="sr-only">Cari nama produk</span>
+						<input
+							type="search"
+							value={search}
+							onChange={(event) => setSearch(event.target.value)}
+							placeholder="Cari kebaya, kain, songket..."
+							className="min-w-0 flex-1 border-0 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-400"
+						/>
+					</label>
+				</div>
+
+				<div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+					<CategoryButton active={category === "Semua"} onClick={() => setCategory("Semua")}>
+						Semua koleksi
+					</CategoryButton>
+					{PRODUCT_CATEGORIES.map((item) => (
+						<CategoryButton key={item} active={category === item} onClick={() => setCategory(item)}>
+							{item}
+						</CategoryButton>
+					))}
+				</div>
+
+				{productsQuery.isError ? (
+					<div
+						className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800"
+						role="alert"
 					>
-						Add Product
-					</Link>
-				</div>
-
-				<div className="overflow-x-auto">
-					<table className="w-full text-sm border-collapse">
-						<thead>
-							{table.getHeaderGroups().map((headerGroup) => (
-								<tr key={headerGroup.id}>
-									{headerGroup.headers.map((header) => {
-										return (
-											<th
-												key={header.id}
-												colSpan={header.colSpan}
-												className="px-4 py-3 text-left text-xs font-semibold text-[var(--sea-ink-soft)] bg-[var(--chip-bg)]"
-											>
-												{header.isPlaceholder ? null : (
-													<div
-														{...{
-															className: "flex items-center gap-1 cursor-pointer select-none",
-															onClick: header.column.getToggleSortingHandler(),
-														}}
-													>
-														{flexRender(header.column.columnDef.header, header.getContext())}
-														{{
-															asc: " ▲",
-															desc: " ▼",
-														}[header.column.getIsSorted() as string] ?? null}
-													</div>
-												)}
-											</th>
-										);
-									})}
-								</tr>
-							))}
-						</thead>
-						<tbody>
-							{table.getRowModel().rows.map((row) => {
-								return (
-									<tr key={row.id} className="border-b border-[var(--line)]">
-										{row.getAllCells().map((cell) => {
-											return (
-												<td key={cell.id} className="px-4 py-3">
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												</td>
-											);
-										})}
-									</tr>
-								);
-							})}
-							{table.getRowModel().rows.length === 0 && (
-								<tr>
-									<td
-										colSpan={columns.length}
-										className="px-4 py-8 text-center text-[var(--sea-ink-soft)]"
+						Katalog gagal dimuat: {productsQuery.error.message}
+					</div>
+				) : productsQuery.isPending ? (
+					<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+						{Array.from({ length: 8 }, (_, index) => (
+							<div
+								key={`catalog-placeholder-${index + 1}`}
+								className="h-80 animate-pulse rounded-2xl bg-stone-100"
+							/>
+						))}
+					</div>
+				) : visibleProducts.length > 0 ? (
+					<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+						{visibleProducts.map((product) => (
+							<article
+								key={product.id}
+								className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+							>
+								<Link
+									to="/product/$productId"
+									params={{ productId: product.id }}
+									className="block text-inherit no-underline"
+								>
+									<ProductArtwork
+										category={product.category}
+										imageUrl={product.imageUrl}
+										name={product.name}
+										className="h-56"
+									/>
+								</Link>
+								<div className="p-4">
+									<div className="mb-2 flex items-center justify-between gap-2">
+										<span className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-amber-800">
+											{product.category}
+										</span>
+										<span
+											className={`rounded-full px-2.5 py-1 text-[0.65rem] font-bold ${
+												product.stock > 5
+													? "bg-emerald-50 text-emerald-800"
+													: product.stock > 0
+														? "bg-amber-50 text-amber-800"
+														: "bg-rose-50 text-rose-800"
+											}`}
+										>
+											{product.stock > 5
+												? "Tersedia"
+												: product.stock > 0
+													? `Sisa ${product.stock}`
+													: "Habis"}
+										</span>
+									</div>
+									<Link
+										to="/product/$productId"
+										params={{ productId: product.id }}
+										className="text-inherit no-underline"
 									>
-										No products yet. Add one to get started.
-									</td>
-								</tr>
-							)}
-						</tbody>
-					</table>
-				</div>
-
-				{productsQuery.isError && (
-					<p className="mt-4 text-sm text-red-600">
-						Failed to load products: {(productsQuery.error as Error).message}
-					</p>
+										<h3 className="m-0 truncate font-serif text-lg text-stone-900">
+											{product.name}
+										</h3>
+									</Link>
+									<p className="mb-3 mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-stone-600">
+										{product.description}
+									</p>
+									<p className="mb-3 mt-0 text-lg font-extrabold text-stone-950">
+										{formatRupiah(product.price)}
+									</p>
+									<div className="flex items-center justify-between gap-2">
+										<Link
+											to="/product/$productId"
+											params={{ productId: product.id }}
+											className="text-xs font-semibold text-stone-700 underline underline-offset-4"
+										>
+											Lihat detail
+										</Link>
+										<AddToCartButton product={product} size={product.sizes[0] ?? "All Size"} />
+									</div>
+								</div>
+							</article>
+						))}
+					</div>
+				) : (
+					<div className="rounded-2xl border border-dashed border-stone-300 px-5 py-16 text-center">
+						<p className="m-0 font-serif text-xl text-stone-800">Produk tidak ditemukan</p>
+						<p className="mb-0 mt-2 text-sm text-stone-500">Coba kategori atau kata kunci lain.</p>
+					</div>
 				)}
 			</section>
 		</main>
+	);
+}
+
+function CategoryButton({
+	active,
+	onClick,
+	children,
+}: {
+	active: boolean;
+	onClick: () => void;
+	children: React.ReactNode;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			aria-pressed={active}
+			className={`whitespace-nowrap rounded-full px-4 py-2.5 text-xs font-semibold transition ${
+				active
+					? "bg-stone-950 text-white"
+					: "border border-stone-200 bg-white text-stone-700 hover:border-amber-500"
+			}`}
+		>
+			{children}
+		</button>
 	);
 }

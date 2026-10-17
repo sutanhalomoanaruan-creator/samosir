@@ -2,11 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { db, getUserRole, removeUserRole, setUserRole } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireAuth } from "@/lib/session";
 
 export const userRoleSchema = z.object({
 	userId: z.string(),
-	role: z.enum(["admin", "user"]),
+	role: z.enum(["admin", "customer"]),
 });
 
 export const getUsers = createServerFn({ method: "GET" }).handler(async () => {
@@ -21,10 +21,34 @@ export const getUsers = createServerFn({ method: "GET" }).handler(async () => {
 	}));
 });
 
+export const getDashboardUserSummary = createServerFn({ method: "GET" }).handler(async () => {
+	const { user } = await requireAuth();
+	if (getUserRole(user.id) !== "admin") {
+		return { canManageUsers: false, userCount: null, adminCount: null };
+	}
+
+	return {
+		canManageUsers: true,
+		userCount: db.user.length,
+		adminCount: db.userRole.filter((role) => role.role === "admin").length,
+	};
+});
+
 export const updateUserRole = createServerFn({ method: "POST" })
 	.validator(userRoleSchema)
 	.handler(async ({ data }) => {
 		await requireAdmin();
+		const currentRole = getUserRole(data.userId);
+		if (currentRole === "admin" && data.role === "customer") {
+			const adminCount = db.userRole.filter((role) => role.role === "admin").length;
+			if (adminCount <= 1) {
+				const err = new Error("Cannot demote the last administrator") as Error & {
+					status?: number;
+				};
+				err.status = 400;
+				throw err;
+			}
+		}
 		setUserRole(data.userId, data.role);
 		return { ok: true };
 	});

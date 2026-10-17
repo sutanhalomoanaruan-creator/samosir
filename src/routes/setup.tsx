@@ -18,26 +18,27 @@ function Setup() {
 			const result = await seedAdminFn();
 			setStatus("success");
 			setMessage(
-				result.alreadySeeded
-					? "Admin account already exists."
-					: "Admin account seeded. Sign in at /demo/better-auth with admin@example.com / admin12345",
+				result.productsAdded > 0
+					? `Akun admin siap dan ${result.productsAdded} produk busana sudah ditambahkan. Masuk dengan admin@example.com / admin12345`
+					: "Akun admin siap dan katalog busana sudah tersedia. Masuk dengan admin@example.com / admin12345",
 			);
 		} catch (err) {
 			setStatus("error");
-			setMessage(err instanceof Error ? err.message : "Seed failed");
+			setMessage(err instanceof Error ? err.message : "Persiapan akun gagal.");
 		}
 	};
 
 	return (
 		<main className="page-wrap px-4 py-12">
 			<section className="island-shell rounded-2xl p-6 sm:p-8">
-				<p className="island-kicker mb-2">Setup</p>
+				<p className="island-kicker mb-2">Kain &amp; Kebaya</p>
 				<h1 className="display-title mb-3 text-4xl font-bold text-[var(--sea-ink)] sm:text-5xl">
-					Seed Admin Account
+					Siapkan akun admin
 				</h1>
 				<p className="m-0 max-w-2xl text-base leading-8 text-[var(--sea-ink-soft)]">
-					This creates the administrator account (password is hashed by Better Auth) and seeds
-					sample products. Run this once after deploying.
+					Buat akun admin dan isi katalog awal 12 produk busana Nusantara, lengkap dengan kategori,
+					deskripsi, harga rupiah, variasi ukuran, dan panduan perawatan. Produk yang sudah ada
+					tidak akan dibuat ulang.
 				</p>
 
 				<div className="mt-8">
@@ -47,7 +48,7 @@ function Setup() {
 						disabled={status === "loading"}
 						className="rounded-xl border border-[var(--line)] bg-[var(--chip-bg)] px-5 py-3 text-sm font-semibold text-[var(--sea-ink)] no-underline transition hover:bg-[var(--link-bg-hover)] disabled:opacity-50"
 					>
-						{status === "loading" ? "Seeding..." : "Seed Admin Account"}
+						{status === "loading" ? "Menyiapkan..." : "Siapkan akun dan katalog kebaya"}
 					</button>
 
 					{status !== "idle" && (
@@ -55,9 +56,9 @@ function Setup() {
 							<p
 								className={`m-0 text-sm ${
 									status === "success"
-										? "text-green-700 dark:text-green-400"
+										? "text-[var(--dashboard-positive)]"
 										: status === "error"
-											? "text-red-700 dark:text-red-400"
+											? "text-[var(--dashboard-danger)]"
 											: "text-[var(--sea-ink-soft)]"
 								}`}
 							>
@@ -68,12 +69,12 @@ function Setup() {
 
 					<div className="mt-6">
 						<p className="m-0 text-sm text-[var(--sea-ink-soft)]">
-							Already have an account?{" "}
+							Sudah punya akun?{" "}
 							<Link
 								to="/demo/better-auth"
 								className="underline underline-offset-4 font-medium hover:text-[var(--sea-ink)]"
 							>
-								Sign in
+								Masuk
 							</Link>
 						</p>
 					</div>

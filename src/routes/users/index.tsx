@@ -212,7 +212,7 @@ function RoleSelect({
 			onChange={(e) => handleChange(e.target.value as Role)}
 			className="text-xs rounded border border-[var(--line)] bg-[var(--chip-bg)] px-2 py-1 text-[var(--sea-ink)] focus:outline-none"
 		>
-			<option value="user">User</option>
+			<option value="customer">Customer</option>
 			<option value="admin">Administrator</option>
 		</select>
 	);

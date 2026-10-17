@@ -1,14 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { type Product, db } from "@/lib/db";
-import { requireAdmin, requireAuth } from "@/lib/session";
+import { PRODUCT_CATEGORIES, type Product, db } from "@/lib/db";
+import { ensureKebayaCatalogSeeded, seedKebayaCatalog } from "@/lib/server/kebaya-catalog";
+import { requireAdmin } from "@/lib/session";
+
+const productFields = {
+	name: z.string().trim().min(2, "Nama produk minimal 2 karakter"),
+	description: z.string().trim().min(10, "Deskripsi minimal 10 karakter"),
+	category: z.enum(PRODUCT_CATEGORIES),
+	price: z.coerce.number().positive("Harga harus lebih besar dari nol"),
+	stock: z.coerce
+		.number()
+		.int("Stok harus berupa bilangan bulat")
+		.min(0, "Stok tidak boleh negatif"),
+	sizes: z.array(z.string().trim().min(1)).min(1, "Pilih setidaknya satu ukuran"),
+	careInstructions: z.string().trim().min(5, "Panduan perawatan minimal 5 karakter"),
+	imageUrl: z.union([z.literal(""), z.string().url("URL gambar tidak valid")]),
+};
 
 export const productSchema = z.object({
-	name: z.string().min(1, "Name is required"),
-	description: z.string().min(1, "Description is required"),
-	price: z.coerce.number().min(0, "Price must be positive"),
-	stock: z.coerce.number().min(0, "Stock must be positive"),
+	...productFields,
 });
 
 export type ProductInput = z.infer<typeof productSchema>;
@@ -16,8 +28,26 @@ export type ProductInput = z.infer<typeof productSchema>;
 // TanStack Start server functions support GET and POST only. Mutations use
 // POST and encode the intended action in the validator/body.
 export const getProducts = createServerFn({ method: "GET" }).handler(async () => {
-	await requireAuth();
+	await requireAdmin();
+	ensureKebayaCatalogSeeded();
 	return [...db.product].sort((a, b) => b.createdAt.localeCompare(a.createdAt)) as Product[];
+});
+
+export const getPublicProducts = createServerFn({ method: "GET" }).handler(async () => {
+	ensureKebayaCatalogSeeded();
+	return [...db.product].sort((a, b) => b.createdAt.localeCompare(a.createdAt)) as Product[];
+});
+
+export const getPublicProduct = createServerFn({ method: "GET" })
+	.validator(z.object({ id: z.string().min(1) }))
+	.handler(async ({ data }) => {
+		ensureKebayaCatalogSeeded();
+		return db.product.find((product) => product.id === data.id) ?? null;
+	});
+
+export const seedProductCatalog = createServerFn({ method: "POST" }).handler(async () => {
+	await requireAdmin();
+	return { added: seedKebayaCatalog() };
 });
 
 export const createProduct = createServerFn({ method: "POST" })
@@ -28,9 +58,10 @@ export const createProduct = createServerFn({ method: "POST" })
 		const product = {
 			id: crypto.randomUUID(),
 			...data,
+			sizes: [...data.sizes],
 			createdAt: now,
 			updatedAt: now,
-		} as Product;
+		};
 		db.product.push(product);
 		return product;
 	});
@@ -57,8 +88,12 @@ export const updateProduct = createServerFn({ method: "POST" })
 			description: data.description,
 			price: data.price,
 			stock: data.stock,
+			category: data.category,
+			sizes: [...data.sizes],
+			careInstructions: data.careInstructions,
+			imageUrl: data.imageUrl,
 			updatedAt: now,
-		} as Product;
+		};
 		db.product[index] = updated;
 		return updated;
 	});
